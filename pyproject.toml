@@ -13,12 +13,10 @@ dependencies = [
     "lxml>=5,<6",
     "markdownify>=0.13,<0.20",
     "python-dotenv>=1,<2",
-    "langchain>=0.3,<0.4",
-    "langchain-core>=0.3,<0.4",
-    "langchain-azure-ai>=0.1,<0.2",
+    "langchain>=1.2,<2",
+    "langchain-core>=0.3,<2",
+    "langchain-azure-ai>=1.1,<2",
     "chromadb>=0.5,<0.6",
-    "sentence-transformers>=3,<4",
-    "torch>=2.4,<3",
     "typer>=0.12,<1",
 ]
 

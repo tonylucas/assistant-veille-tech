@@ -4,7 +4,7 @@ import logging
 from functools import lru_cache
 from typing import Any
 
-from sentence_transformers import SentenceTransformer
+from langchain_azure_ai.embeddings import AzureAIOpenAIApiEmbeddingsModel
 
 from app.config import get_settings
 from app.rag.chroma_client import get_collection
@@ -13,15 +13,17 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def get_embedder() -> SentenceTransformer:
+def get_embedder() -> AzureAIOpenAIApiEmbeddingsModel:
     settings = get_settings()
-    return SentenceTransformer(settings.embedding_model)
+    return AzureAIOpenAIApiEmbeddingsModel(
+        endpoint=settings.azure_ai_embedding_endpoint,
+        credential=settings.azure_ai_embedding_api_key,
+        model=settings.azure_ai_embedding_model,
+    )
 
 
 def embed(text: str) -> list[float]:
-    embedder = get_embedder()
-    vec = embedder.encode([text], normalize_embeddings=True)
-    return vec[0].tolist()
+    return get_embedder().embed_query(text)
 
 
 def retrieve(query: str, k: int = 8) -> list[dict[str, Any]]:

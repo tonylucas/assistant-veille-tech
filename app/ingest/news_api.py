@@ -12,7 +12,7 @@ import httpx
 from pydantic import ValidationError
 
 from app.config import Settings, get_settings
-from app.rag.chroma_client import get_collection
+from app.rag.chroma_client import get_collection, print_db_stats
 from app.rag.retrieval import embed
 from app.schemas import Article
 
@@ -46,6 +46,8 @@ class NewsApiIngester:
         if not topics:
             return []
 
+        topics = list(dict.fromkeys(topics))
+
         self._save_topics(topics)
         self._seen_ids.clear()
         articles: list[Article] = []
@@ -61,6 +63,7 @@ class NewsApiIngester:
             self._upsert(articles)
 
         return [a.model_dump() for a in articles]
+ 
 
     # ── private ──────────────────────────────────────────────
 
@@ -140,6 +143,7 @@ class NewsApiIngester:
 
     @staticmethod
     def _upsert(articles: list[Article]) -> None:
+        print(f"upserting {len(articles)} articles into chroma...")
         collection = get_collection()
         ids = [a.id for a in articles]
         documents = [a.content for a in articles]
@@ -161,6 +165,8 @@ class NewsApiIngester:
             metadatas=metadatas,
         )
         logger.info("upserted %d articles into chroma", len(ids))
+        print(f"\nupserted {len(ids)} articles into chroma")
+        print_db_stats()
 
     @staticmethod
     def _save_topics(topics: list[str]) -> None:
