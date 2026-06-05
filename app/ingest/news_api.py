@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import ValidationError
 
 from app.config import Settings, get_settings
@@ -26,6 +27,8 @@ _TOPICS_PATH = Path("data/topics.json")
 _REMOVE_DUPLICATE = 1
 _SORT = "relevancy"
 _EXCLUDE_FIELD = "sentiment,sentiment_stats,ai_tag,ai_region,ai_org,ai_summary,content"
+_CHUNK_SIZE = 2000  # ~400 mots / ~500 tokens en francais
+_CHUNK_OVERLAP = 200  # ~10 % d'overlap
 
 def _stable_id(url: str) -> str:
     return hashlib.sha1(url.encode()).hexdigest()
@@ -77,7 +80,7 @@ class NewsApiIngester:
             raw_articles: list[dict[str, Any]] = data.get("results", [])
             total_results: int = data.get("totalResults", 0)
             for raw in raw_articles:
-                article = self._normalize(raw, topic)
+                article = self._normalize(raw)
                 if article and article.id not in self._seen_ids:
                     self._seen_ids.add(article.id)
                     articles.append(article)
@@ -116,7 +119,7 @@ class NewsApiIngester:
         return resp.json()
 
     @staticmethod
-    def _normalize(raw: dict[str, Any], topic: str) -> Article | None:
+    def _normalize(raw: dict[str, Any]) -> Article | None:
         url = raw.get("link") or ""
         if not url:
             return None
@@ -127,45 +130,71 @@ class NewsApiIngester:
         if not content:
             return None
 
+        tags = (raw.get("category") or []) + (raw.get("keywords") or [])
+
         try:
             return Article(
                 id=_stable_id(url),
                 title=raw.get("title") or "",
-                source=raw.get("source_name") or "unknown",
-                date=raw.get("pubDate"),
+                source_name=raw.get("source_name") or "unknown",
+                source_type="news_article",
+                date_published=raw.get("pubDate"),
+                date_collected=raw.get("fetched_at"),
                 content=content,
                 url=url,
-                tags=[topic],
+                tags=list(dict.fromkeys(tags)),
             )
         except ValidationError as exc:
             logger.warning("validation failed for %s: %s", url, exc)
             return None
 
     @staticmethod
+    def _split_content(content: str) -> list[str]:
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=_CHUNK_SIZE,
+            chunk_overlap=_CHUNK_OVERLAP,
+        )
+        return splitter.split_text(content)
+
+    @staticmethod
     def _upsert(articles: list[Article]) -> None:
         print(f"upserting {len(articles)} articles into chroma...")
         collection = get_collection()
-        ids = [a.id for a in articles]
-        documents = [a.content for a in articles]
-        embeddings = [embed(doc) for doc in documents]
-        metadatas = [
-            {
-                "title": a.title,
-                "source": a.source,
-                "date": a.date.isoformat() if a.date else "",
-                "url": str(a.url),
-                "tags": ",".join(a.tags),
+        ids: list[str] = []
+        documents: list[str] = []
+        embeddings: list[list[float]] = []
+        metadatas: list[dict[str, Any]] = []
+
+        for article in articles:
+            chunks = NewsApiIngester._split_content(article.content)
+            base_meta = {
+                "source_type": article.source_type,
+                "source_name": article.source_name,
+                "date_published": article.date_published.isoformat()
+                if article.date_published
+                else "",
+                "date_collected": article.date_collected.isoformat()
+                if article.date_collected
+                else "",
+                "tags": ",".join(article.tags),
+                "url": str(article.url),
+                "title": article.title,
+                "chunk_total": len(chunks),
             }
-            for a in articles
-        ]
+            for i, chunk in enumerate(chunks):
+                ids.append(f"{article.id}_chunk_{i + 1}")
+                documents.append(chunk)
+                embeddings.append(embed(chunk))
+                metadatas.append({**base_meta, "chunk_index": i})
+
         collection.upsert(
             ids=ids,
             documents=documents,
             embeddings=embeddings,
             metadatas=metadatas,
         )
-        logger.info("upserted %d articles into chroma", len(ids))
-        print(f"\nupserted {len(ids)} articles into chroma")
+        logger.info("upserted %d chunks from %d articles", len(ids), len(articles))
+        print(f"\nupserted {len(ids)} chunks from {len(articles)} articles into chroma")
         print_db_stats()
 
     @staticmethod

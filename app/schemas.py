@@ -7,8 +7,10 @@ from pydantic import BaseModel, Field, HttpUrl
 class Article(BaseModel):
     id: str
     title: str
-    source: str
-    date: datetime | None = None
+    source_name: str
+    source_type: str = "news_article"
+    date_published: datetime | None = None
+    date_collected: datetime | None = None
     content: str
     url: HttpUrl | str
     tags: list[str] = Field(default_factory=list)

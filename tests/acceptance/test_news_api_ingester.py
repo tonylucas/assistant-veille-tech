@@ -10,10 +10,24 @@ def test_run_returns_list_of_normalized_articles() -> None:
     for art in articles:
         assert "id" in art
         assert "title" in art
-        assert "source" in art
-        assert "date" in art
+        assert "source_name" in art
+        assert "source_type" in art
+        assert "date_published" in art
+        assert "date_collected" in art
         assert "url" in art
         assert "content" in art
+
+
+def test_split_content_chunks_long_text() -> None:
+    long_text = "Phrase de veille technologique. " * 400
+    chunks = NewsApiIngester._split_content(long_text)
+    assert len(chunks) > 1
+    assert all(chunk.strip() for chunk in chunks)
+
+
+def test_split_content_keeps_short_text_single_chunk() -> None:
+    chunks = NewsApiIngester._split_content("Un court article.")
+    assert chunks == ["Un court article."]
 
 
 def test_run_handles_empty_topics() -> None:

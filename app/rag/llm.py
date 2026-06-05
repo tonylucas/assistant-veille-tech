@@ -44,8 +44,8 @@ def _format_context(retrieved: list[dict[str, Any]], fresh: list[dict[str, Any]]
         for i, chunk in enumerate(retrieved, 1):
             meta = chunk.get("metadata") or {}
             parts.append(
-                f"[{i}] {meta.get('title', '')} — {meta.get('source', '')} "
-                f"({meta.get('date', '')})\n{chunk.get('content', '')[:600]}"
+                f"[{i}] {meta.get('title', '')} — {meta.get('source_name', '')} "
+                f"({meta.get('date_published', '')})\n{chunk.get('content', '')[:600]}"
             )
     if fresh:
         parts.append("## Actualité fraîche")
@@ -67,8 +67,8 @@ def _build_cards(
         cards.append(
             ArticleCard(
                 title=meta.get("title", "Sans titre"),
-                source=meta.get("source", "interne"),
-                date=meta.get("date"),
+                source=meta.get("source_name", "interne"),
+                date=meta.get("date_published"),
                 snippet=snippet,
                 url=meta.get("url", ""),
                 tags=_split_tags(meta.get("tags")),
