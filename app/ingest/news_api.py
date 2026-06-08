@@ -92,15 +92,6 @@ class NewsApiIngester:
         return articles
 
     def _fetch_page(self, client: httpx.Client, topic: str, page: int) -> dict[str, Any]:
-        """
-        Si le fichier local 'mock/news.json' existe, retourne son contenu JSON.
-        Sinon, effectue la requête HTTP normale.
-        """
-        mock_path = Path("mock/news.json")
-        if mock_path.exists():
-            with mock_path.open(encoding="utf-8") as f:
-                return json.load(f)
-
         assert self.settings is not None
         resp = client.get(
             f"{self.settings.news_api_base_url}/{_ENDPOINT}",

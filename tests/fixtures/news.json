@@ -1,0 +1,345 @@
+{
+  "status": "success",
+  "totalResults": 34,
+  "results": [
+    {
+      "article_id": "b9ba61da010671b9490edb154ce37089",
+      "link": "https://www.frandroid.com/marques/3127629_google-paie-en-secret-des-developpeurs-android-pour-leur-code-le-web-ouvert-ne-suffit-plus-a-son-ia",
+      "title": "Google paie en secret des développeurs Android pour leur code : le web ouvert ne suffit plus à son IA",
+      "description": "Google chercherait à racheter en secret le code de certains développeurs Android pour entraîner ses IA. Derrière l'offre alléchante, un aveu : le web ouvert ne suffit plus.",
+      "keywords": [
+        "google",
+        "android",
+        "intelligence-artificielle",
+        "web",
+        "developpement",
+        "at_chaud",
+        "ct_article",
+        "culture-tech",
+        "pt_post",
+        "marques"
+      ],
+      "creator": [
+        "ulrich rozier"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "technology"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 18:43:02",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 19:03:47",
+      "image_url": "https://c0.lestechnophiles.com/images.frandroid.com/wp-content/uploads/2025/08/google-play-store-glitch.jpg?resize=1600,900&key=473de3e7&watermark",
+      "video_url": null,
+      "source_id": "frandroid",
+      "source_name": "Frandroid",
+      "source_priority": 12557,
+      "source_url": "https://www.frandroid.com",
+      "source_icon": "https://n.bytvi.com/frandroid.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "4cc73660cdd987576e3751bccf75cf08",
+      "link": "https://www.lexpress.fr/idees-et-debats/une-partie-de-lhumanite-verra-la-mort-devenir-un-bug-corrigeable-la-revolution-de-lia-vue-par-deux-QCPD3F32BFAM5PWSATCAXSXTFM/",
+      "title": "\"Une partie de l’humanité verra la mort devenir un bug corrigeable\" : la révolution de l'IA vue par deux générations",
+      "description": "Coauteurs de \"Vivre 1 000 ans\", Laurent Alexandre, 65 ans, et Alexandre Tsicopoulos, 25 ans, confrontent leurs regards très différents sur l'IA et les perspectives en matière de longévité comme d'emplois.",
+      "keywords": [
+        "partie",
+        "devenir",
+        "l'intelligence artificielle",
+        "l’humanité",
+        "2026",
+        "mort",
+        "bug",
+        "verra",
+        "idées et débats"
+      ],
+      "creator": [
+        "thomas mahler"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "technology"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 16:15:00",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 16:47:52",
+      "image_url": "https://www.lexpress.fr/resizer/v2/OXZPIUHHCZAR7DFG2W6UGVBK3A.jpg?auth=8efb1351064567b1a7237791fdcd8633d42850c8f2702e3eac09ed91065b3f69&smart=true&width=3727&height=2096",
+      "video_url": null,
+      "source_id": "lexpress_fr",
+      "source_name": "Lexpress Fr",
+      "source_priority": 1003057,
+      "source_url": "https://www.lexpress.fr",
+      "source_icon": "https://n.bytvi.com/lexpress_fr.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "57de803eb342a2e4fabf94522a3bdaf1",
+      "link": "https://www.frandroid.com/bons-plans/bons-plans-objets-connectes/3127513_cette-mini-horloge-meteo-retro-coute-moins-de-6-e-et-se-bidouille-a-linfini",
+      "title": "Cette mini horloge météo rétro coûte moins de 6 € et se bidouille à l’infini",
+      "description": "Besoin d'un petit gadget fun et utile pour votre bureau ? La mini station d'horloge numérique GeekMagic SmallTV-Ultra est actuellement proposée au prix mini de 5,49 euros chez Aliexpress.",
+      "keywords": [
+        "bons plans aliexpress"
+      ],
+      "creator": [
+        "ulrich rozier"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "technology"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 16:11:28",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 16:33:53",
+      "image_url": "https://c0.lestechnophiles.com/images.frandroid.com/wp-content/uploads/2026/06/image-33.jpg?resize=1600,900&key=8285df38&watermark",
+      "video_url": null,
+      "source_id": "frandroid",
+      "source_name": "Frandroid",
+      "source_priority": 12557,
+      "source_url": "https://www.frandroid.com",
+      "source_icon": "https://n.bytvi.com/frandroid.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "8cc5df1d90ef5b6534e6d455a951af9b",
+      "link": "https://actu.fr/occitanie/toulouse_31555/ils-ne-sont-pas-elus-pourquoi-606-habitants-vont-etre-designes-ce-vendredi-a-toulouse-pour-elire-les-senateurs_64354890.html",
+      "title": "Ils ne sont pas élus : pourquoi 606 habitants vont être désignés ce vendredi à Toulouse pour élire les sénateurs",
+      "description": "Ce vendredi 5 juin 2026, le conseil municipal de Toulouse va désigner ses grands électeurs pour les sénatoriales. Une armada qui comptera 606 \"simples\" citoyens aux côtés des élus.",
+      "keywords": [
+        "sénat",
+        "politique",
+        "élections sénatoriales"
+      ],
+      "creator": [
+        "guillaume laurens"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "politics"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 16:02:01",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 16:15:11",
+      "image_url": "https://static.actu.fr/uploads/2026/06/conseil-municipal-toulouse-gl.jpg",
+      "video_url": null,
+      "source_id": "actu",
+      "source_name": "Actu.fr",
+      "source_priority": 631297,
+      "source_url": "https://actu.fr",
+      "source_icon": "https://n.bytvi.com/actu.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "2149d12b31967515ac5de32d8937f652",
+      "link": "https://www.generation-nt.com/actualites/google-play-store-code-source-entrainement-ia-gemini-2076561",
+      "title": "Google achète en catimini le code d'applications Android pour entraîner son IA",
+      "description": "Dans la course à l'IA et pour Gemini, Google sort son portefeuille et se tourne vers la communauté des développeurs Android afin d'acquérir de la matière première précieuse : du code de qualité.",
+      "keywords": [
+        "play",
+        "entrainement",
+        "code",
+        "ia",
+        "store",
+        "source",
+        "gemini",
+        "google"
+      ],
+      "creator": [
+        "jérôme g."
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "technology"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 15:30:01",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 15:36:34",
+      "image_url": "https://img.generation-nt.com/gemini-switching-tools_01722498.jpg",
+      "video_url": null,
+      "source_id": "generation_nt",
+      "source_name": "Génération Nt",
+      "source_priority": 66252,
+      "source_url": "https://www.generation-nt.com",
+      "source_icon": "https://n.bytvi.com/generation_nt.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "dd22ee95915aa21a8d300468c0d1ec15",
+      "link": "https://www.clubic.com/actualite-615427-vos-donnees-medicales-chez-doctolib-transmises-aux-geants-americains-ce-que-disent-les-documents-officiels.html",
+      "title": "Vos données médicales chez Doctolib transmises aux géants américains ? Ce que disent les documents officiels",
+      "description": "Doctolib partage-t-il vos données médicales avec des géants américains de l'IA ? Le Canard enchaîné a déclenché la polémique cette semaine, mais la réalité, documents à l'appui, est plus nuancée.",
+      "keywords": null,
+      "creator": [
+        "alexandre boero"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "technology",
+        "top"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 14:26:00",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 14:38:42",
+      "image_url": "https://pic.clubic.com/v1/images/2349253/raw",
+      "video_url": null,
+      "source_id": "clubic",
+      "source_name": "Clubic",
+      "source_priority": 126401,
+      "source_url": "https://www.clubic.com",
+      "source_icon": "https://n.bytvi.com/clubic.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "8b74943f568ea49310915246921d5fbe",
+      "link": "https://www.lemondeinformatique.fr/actualites/lire-nvidia-acquiert-kumo-ai-specialiste-de-l-ia-predictive-100355.html",
+      "title": "Nvidia acquiert Kumo AI, spécialiste de l'IA prédictive",
+      "description": "Depuis plusieurs mois, Nvidia renforce de ses capacités agentiques. Après avoir mis la main sur RunAI en décembre 2024 pour 700 (...)",
+      "keywords": null,
+      "creator": [
+        "dominique filippone"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "business"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 13:24:30",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 13:24:30",
+      "image_url": "https://images.itnewsinfo.com/lmi/articles/grande/000000107600.jpg",
+      "video_url": null,
+      "source_id": "lemondeinformatique",
+      "source_name": "Le Monde Informatique",
+      "source_priority": 1226031,
+      "source_url": "https://www.lemondeinformatique.fr",
+      "source_icon": "https://n.bytvi.com/lemondeinformatique.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "dce9baa65c33b4c0a52c4a25b990e7af",
+      "link": "https://www.presse-citron.net/nano-banana-nest-plus-la-meilleure-ia-pour-modifier-une-image/",
+      "title": "Nano Banana n’est plus la meilleure IA pour modifier une image : ces 4 modèles OpenAI, Microsoft et xAI sont devant l’IA de Google",
+      "description": "Microsoft a récemment lancé une nouvelle IA pour les images. Et elle est déjà devant la technologie Nano Banana de Google, mais derrière GPT-image-2 d’OpenAI, pour la modification d’une image.",
+      "keywords": [
+        "google",
+        "openai",
+        "microsoft"
+      ],
+      "creator": [
+        "setra"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "technology"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 10:31:23",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 10:34:52",
+      "image_url": "https://www.presse-citron.net/app/uploads/2026/06/Arena-AI-1.jpg",
+      "video_url": null,
+      "source_id": "presse_citron",
+      "source_name": "Presse Citron",
+      "source_priority": 35362,
+      "source_url": "https://www.presse-citron.net",
+      "source_icon": "https://n.bytvi.com/presse_citron.jpg",
+      "duplicate": false
+    },
+    {
+      "article_id": "2556e383cafab527719c831c4a5742a5",
+      "link": "https://www.lesaffaires.com/dossiers/cloud-un-nuage-qui-propulse-les-pme-quebecoises/lia-coute-moins-cher-quelle-ne-coute-a-produire-et-ca-ne-durera-pas/",
+      "title": "L’IA coûte moins cher qu’elle ne coûte à produire et ça ne durera pas",
+      "description": "EXPERT INVITÉ. «Au Québec comme ailleurs, le vrai prix finira par s’afficher.» The post L’IA coûte moins cher qu’elle ne coûte à produire et ça ne durera pas appeared first on Les Affaires .",
+      "keywords": [
+        "hydro-québec",
+        "centres de données",
+        "intelligence artificielle"
+      ],
+      "creator": [
+        "martin berthiaume"
+      ],
+      "language": "french",
+      "country": [
+        "canada"
+      ],
+      "category": [
+        "business",
+        "top"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 09:18:00",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 11:28:41",
+      "image_url": "https://shared-dev-lesaffaires.s3.amazonaws.com/uploads/2026/06/AdobeStock_976359931_Editorial_Use_Only-1.jpg",
+      "video_url": null,
+      "source_id": "lesaffairs",
+      "source_name": "Les Affairs",
+      "source_priority": 976067,
+      "source_url": "https://www.lesaffaires.com",
+      "source_icon": "https://n.bytvi.com/lesaffairs.png",
+      "duplicate": false
+    },
+    {
+      "article_id": "8c647a8530a2da447b3a0f23cef3d1e9",
+      "link": "https://www.frandroid.com/marques/microsoft/3125665_microsoft-pousse-les-developpeurs-a-creer-des-app-natives-sur-windows-11",
+      "title": "Microsoft pousse les développeurs à créer des app natives sur Windows 11",
+      "description": "Microsoft dévoile une nouvelle série d’outils destinés aux développeurs afin de faciliter la création d’applications natives sur Windows 11. Une stratégie qui promet des applications plus fluides, plus réactives, avec de meilleures performances.",
+      "keywords": [
+        "windows 11"
+      ],
+      "creator": [
+        "arthur rafié"
+      ],
+      "language": "french",
+      "country": [
+        "france"
+      ],
+      "category": [
+        "technology"
+      ],
+      "datatype": "news",
+      "pubDate": "2026-06-04 07:39:23",
+      "pubDateTZ": "UTC",
+      "fetched_at": "2026-06-04 08:02:26",
+      "image_url": "https://c0.lestechnophiles.com/images.frandroid.com/wp-content/uploads/2021/06/windows-11-logo-hero.jpg?resize=1600,900&key=0560a8fa&watermark",
+      "video_url": null,
+      "source_id": "frandroid",
+      "source_name": "Frandroid",
+      "source_priority": 12557,
+      "source_url": "https://www.frandroid.com",
+      "source_icon": "https://n.bytvi.com/frandroid.png",
+      "duplicate": false
+    }
+  ],
+  "nextPage": "1780558763946992740"
+}
