@@ -26,7 +26,7 @@ typecheck:
 	uv run mypy app
 
 ingest:
-	uv run python scripts/ingest_cli.py
+	PYTHONPATH=. uv run python scripts/ingest_cli.py
 
 chat-test:
 	curl -s -X POST http://localhost:8000/chat \

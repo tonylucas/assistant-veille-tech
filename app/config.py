@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     news_api_key: str = ""
     news_api_base_url: str = "https://newsapi.org/v2"
 
+    twitter_username: str = ""
+    twitter_email: str = ""
+    twitter_password: str = ""
+    twitter_cookies_path: str = "data/twitter_cookies.json"
+
     backend_port: int = 8000
     frontend_port: int = 3000
 

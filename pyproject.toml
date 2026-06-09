@@ -18,6 +18,8 @@ dependencies = [
     "langchain-azure-ai>=1.1,<2",
     "chromadb>=0.5,<0.6",
     "typer>=0.12,<1",
+    "langchain-text-splitters>=0.3,<2",
+    "twikit",
 ]
 
 [dependency-groups]
@@ -32,6 +34,9 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+twikit = { git = "https://github.com/unclecode/twikit.git" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

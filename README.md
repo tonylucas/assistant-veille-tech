@@ -15,7 +15,7 @@ Nauda Palisse — assistant de veille technologique. RAG sur Chroma + injection 
 - **Backend** : Python 3.11, uv, FastAPI ≥0.115, Pydantic 2
 - **RAG** : ChromaDB 0.5, sentence-transformers 3 (`intfloat/multilingual-e5-small`)
 - **LLM** : LangChain 0.3 + `langchain-azure-ai` → Azure AI Inference (Kimi-K2.6)
-- **Scraping / HTTP** : httpx 0.27, BeautifulSoup 4, markdownify
+- **Scraping / HTTP** : httpx 0.27, BeautifulSoup 4, markdownify, twikit (Twitter/X)
 - **Frontend** : Next.js 15 (App Router), React 19, TypeScript 5, Tailwind CSS 4
 - **Orchestration** : Docker Compose (chromadb + backend + frontend)
 
@@ -34,7 +34,7 @@ Nauda Palisse — assistant de veille technologique. RAG sur Chroma + injection 
 │   │   └── llm.py            # pipeline LangChain → Azure AI (Kimi-K2.6)
 │   ├── ingest/
 │   │   ├── news_api.py       # ingester NewsAPI → Chroma
-│   │   ├── scraper.py        # scraping de sources tech
+│   │   ├── twitter.py        # ingester Twitter/X via twikit → Chroma
 │   │   ├── cleaning.py       # HTML→Markdown, dedup, chunking, boilerplate
 │   │   └── enrich.py         # hook d'enrichissement post-retrieval
 │   └── runtime/
@@ -57,7 +57,7 @@ Nauda Palisse — assistant de veille technologique. RAG sur Chroma + injection 
 ## Setup
 
 ```bash
-cp .env.example .env          # renseigner AZURE_AI_INFERENCE_*, NEWS_API_KEY
+cp .env.example .env          # renseigner AZURE_AI_INFERENCE_*, NEWS_API_KEY, TWITTER_USERNAME/EMAIL/PASSWORD
 make install                  # uv sync (backend)
 make up                       # docker compose up -d (chromadb + backend + frontend)
 ```
@@ -83,6 +83,7 @@ make ingest                   # passe par scripts/ingest_cli.py
 Voici quelques pistes de sources publiques utilisables pour alimenter l'index :
 
 - **NewsAPI v2** (`/everything`, `/top-headlines`) — documentation : https://newsapi.org/docs
+- **Twitter / X** via twikit (sans clé API, login compte + cookies) — contenu tech "chaud" et live, filtré sur 2 mois — https://github.com/d60/twikit
 - **Blogs et agrégateurs techniques** — par exemple Hacker News (front page / item API), DEV.to, Smashing Magazine, lobste.rs
 - **Changelogs produits** — par exemple Vercel, OpenAI, GitHub, Anthropic, Stripe
 - **Pages de docs / annonces** — par exemple les release notes des frameworks de l'écosystème (Next.js, FastAPI, LangChain), les changelogs Python / Node

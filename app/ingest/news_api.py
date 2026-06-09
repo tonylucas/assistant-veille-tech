@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -23,7 +20,6 @@ _ENDPOINT = "latest"
 _LANGUAGE = "fr"
 _PAGE_SIZE = 10
 _MAX_PAGES = 5
-_TOPICS_PATH = Path("data/topics.json")
 _REMOVE_DUPLICATE = 1
 _SORT = "relevancy"
 _EXCLUDE_FIELD = "sentiment,sentiment_stats,ai_tag,ai_region,ai_org,ai_summary,content"
@@ -51,7 +47,6 @@ class NewsApiIngester:
 
         topics = list(dict.fromkeys(topics))
 
-        self._save_topics(topics)
         self._seen_ids.clear()
         articles: list[Article] = []
 
@@ -187,13 +182,3 @@ class NewsApiIngester:
         logger.info("upserted %d chunks from %d articles", len(ids), len(articles))
         print(f"\nupserted {len(ids)} chunks from {len(articles)} articles into chroma")
         print_db_stats()
-
-    @staticmethod
-    def _save_topics(topics: list[str]) -> None:
-        _TOPICS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "topics": topics,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
-        _TOPICS_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
-        logger.info("saved topics to %s", _TOPICS_PATH)

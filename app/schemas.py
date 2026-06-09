@@ -14,6 +14,7 @@ class Article(BaseModel):
     content: str
     url: HttpUrl | str
     tags: list[str] = Field(default_factory=list)
+    lang: str | None = None
 
 
 class ArticleCard(BaseModel):

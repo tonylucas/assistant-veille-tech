@@ -31,39 +31,63 @@ def get_collection() -> Collection:
         metadata={"hnsw:space": "cosine"},
     )
 
-
 def print_db_stats() -> None:
-    """Affiche un tableau récapitulatif de toutes les collections ChromaDB."""
+    """Affiche un tableau récapitulatif de toutes les collections ChromaDB
+    avec répartition des items par source_type."""
     client = get_client()
     collections = client.list_collections()
 
+    # Largeur supplémentaire pour le détail par source_type
+    _SRC_W = 34
+    total_w = _COL_W + _NUM_W + _META_W + _SRC_W + 11  # 11 pour séparateurs
+
     title = " ChromaDB — état de la base "
-    total_w = _COL_W + _NUM_W + _META_W + 8  # separators + padding
-
     top    = f"╔{'═' * (total_w)}╗"
-    mid_h  = f"╠{'═' * (_COL_W + 2)}╦{'═' * (_NUM_W + 2)}╦{'═' * (_META_W + 2)}╣"
-    sep    = f"╠{'═' * (_COL_W + 2)}╬{'═' * (_NUM_W + 2)}╬{'═' * (_META_W + 2)}╣"
-    bot    = f"╚{'═' * (_COL_W + 2)}╩{'═' * (_NUM_W + 2)}╩{'═' * (_META_W + 2)}╝"
+    mid_h  = f"╠{'═' * (_COL_W + 2)}╦{'═' * (_NUM_W + 2)}╦{'═' * (_META_W + 2)}╦{'═' * (_SRC_W + 2)}╣"
+    sep    = f"╠{'═' * (_COL_W + 2)}╬{'═' * (_NUM_W + 2)}╬{'═' * (_META_W + 2)}╬{'═' * (_SRC_W + 2)}╣"
+    bot    = f"╚{'═' * (_COL_W + 2)}╩{'═' * (_NUM_W + 2)}╩{'═' * (_META_W + 2)}╩{'═' * (_SRC_W + 2)}╝"
 
-    def row(col: str, num: str, meta: str) -> str:
+    def row(col: str, num: str, meta: str, per_source: str) -> str:
         return (
-            f"║ {col:<{_COL_W}} ║ {num:>{_NUM_W}} ║ {meta:<{_META_W}} ║"
+            f"║ {col:<{_COL_W}} ║ {num:>{_NUM_W}} ║ {meta:<{_META_W}} ║ {per_source:<{_SRC_W}} ║"
         )
 
     print(top)
     print(f"║{title:^{total_w}}║")
     print(mid_h)
-    print(row("Collection", "Items", "Métrique (hnsw)"))
+    print(row("Collection", "Items", "Métrique (hnsw)", "Items par source_type"))
     print(sep)
 
     if not collections:
-        print(row("(aucune collection)", "", ""))
+        print(row("(aucune collection)", "", "", ""))
     else:
         for col in collections:
             count = col.count()
             metric = (col.metadata or {}).get("hnsw:space", "—")
             name = col.name[:_COL_W] if len(col.name) > _COL_W else col.name
-            print(row(name, str(count), metric))
+
+            # Statistiques détaillées par source_type
+            try:
+                # Extraction jusqu'à 1000 docs suffit pour l'affichage
+                MAX_SAMPLE = 1000
+                docs = col.get(
+                    include=["metadatas"], 
+                    limit=MAX_SAMPLE,
+                )
+                source_counts = {}
+                metadatas = docs.get("metadatas", [])
+                for meta in metadatas:
+                    if not meta:
+                        continue
+                    st = meta.get("source_type", "—")
+                    source_counts[st] = source_counts.get(st, 0) + 1
+                per_source = ", ".join(f"{k}:{v}" for k, v in sorted(source_counts.items())) or "—"
+                if count > MAX_SAMPLE and per_source != "—":
+                    per_source += " …"
+            except Exception as e:
+                per_source = f"[erreur: {e}]"
+
+            print(row(name, str(count), metric, per_source))
 
     print(bot)
     print(f"  {len(collections)} collection(s) • {get_settings().chroma_url}")
