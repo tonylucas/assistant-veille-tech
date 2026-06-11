@@ -1,3 +1,17 @@
+# ---------------------------------------------------------------
+# Flux d'appel des fonctions principales (call flow):
+#
+# NewsApiIngester.run(topics)
+#     └─> _fetch_topic(client, topic)             (par topic)
+#         └─> _fetch_page(client, topic, page)    (par page)
+#         └─> _normalize(raw)                     (static, normalise chaque article brut)
+#     └─> _upsert(articles)                       (static, si articles trouvés)
+#         └─> _split_content(content)             (static, découpe le contenu en chunks)
+#         └─> get_collection(), embed(), print_db_stats()
+#
+# Les fonctions statiques servent à la normalisation et à la découpe du contenu.
+# ---------------------------------------------------------------
+
 from __future__ import annotations
 
 import hashlib
@@ -42,6 +56,7 @@ class NewsApiIngester:
     # ── public ───────────────────────────────────────────────
 
     def run(self, topics: list[str]) -> list[dict[str, Any]]:
+        """Fetch articles for the given topics and upsert them into the database."""
         if not topics:
             return []
 
@@ -66,6 +81,7 @@ class NewsApiIngester:
     # ── private ──────────────────────────────────────────────
 
     def _fetch_topic(self, client: httpx.Client, topic: str) -> list[Article]:
+        """Fetch a topic and return a list of Article objects."""
         assert self.settings is not None
         articles: list[Article] = []
         fetched = 0
@@ -87,6 +103,7 @@ class NewsApiIngester:
         return articles
 
     def _fetch_page(self, client: httpx.Client, topic: str, page: int) -> dict[str, Any]:
+        """Fetch a page of articles and return a dictionary of results."""
         assert self.settings is not None
         resp = client.get(
             f"{self.settings.news_api_base_url}/{_ENDPOINT}",
@@ -106,13 +123,13 @@ class NewsApiIngester:
 
     @staticmethod
     def _normalize(raw: dict[str, Any]) -> Article | None:
+        """Normalize a raw article and return an Article object."""
         url = raw.get("link") or ""
         if not url:
             return None
 
         description = raw.get("description") or ""
-        body = raw.get("content") or ""
-        content = f"{description} {body}".strip()
+        content = description.strip()
         if not content:
             return None
 
@@ -136,6 +153,7 @@ class NewsApiIngester:
 
     @staticmethod
     def _split_content(content: str) -> list[str]:
+        """Split the content into chunks."""
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=_CHUNK_SIZE,
             chunk_overlap=_CHUNK_OVERLAP,
@@ -144,6 +162,7 @@ class NewsApiIngester:
 
     @staticmethod
     def _upsert(articles: list[Article]) -> None:
+        """Upsert the given articles into the database."""
         print(f"upserting {len(articles)} articles into chroma...")
         collection = get_collection()
         ids: list[str] = []
