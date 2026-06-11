@@ -7,12 +7,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import typer
 
+from app.rag.chroma_client import delete_collection
 from app.ingest.topics import load_topics, save_topics
 from app.ingest.news_api import NewsApiIngester
 from app.ingest.twitter import TwitterIngester
-from app.rag.chroma_client import delete_collection
-app = typer.Typer(help="Ingestion CLI for the veille tech index.")
 
+app = typer.Typer(help="Ingestion CLI for the veille tech index.")
 
 @app.command()
 def ingest(
@@ -38,6 +38,18 @@ def ingest(
     twitter_results = TwitterIngester().run(resolved)
     typer.echo(f"  {len(twitter_results)} tweet(s) ingested")
 
+
+@app.command()
+def delete_and_ingest(
+    topics: list[str] = typer.Option(
+        None, "--topic", "-t", help="Topic to ingest (repeatable). Falls back to saved topics."
+    ),
+) -> None:
+    """Delete the collection and ingest the topics."""
+    delete_collection(where={"source_type": "newsapi"})
+    delete_collection(where={"source_type": "x-article"})
+    ingest(topics)
+    typer.echo("Collection deleted and ingested successfully.")
 
 if __name__ == "__main__":
     app()

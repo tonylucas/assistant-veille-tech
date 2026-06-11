@@ -28,6 +28,9 @@ typecheck:
 ingest:
 	PYTHONPATH=. uv run python scripts/ingest_cli.py
 
+delete-and-ingest:
+	PYTHONPATH=. uv run python scripts/ingest_cli.py delete-and-ingest
+
 chat-test:
 	curl -s -X POST http://localhost:8000/chat \
 		-H 'Content-Type: application/json' \

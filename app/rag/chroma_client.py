@@ -31,6 +31,15 @@ def get_collection() -> Collection:
         metadata={"hnsw:space": "cosine"},
     )
 
+def delete_collection(where: dict[str, str]) -> None:
+    """Delete all documents from the collection where the metadata matches the given where clause."""
+    settings = get_settings()
+    client = get_client()
+    collection = client.get_collection(settings.chroma_collection)
+    collection.delete(
+        where=where
+    )
+
 def print_db_stats() -> None:
     """Affiche un tableau récapitulatif de toutes les collections ChromaDB
     avec répartition des items par source_type."""
