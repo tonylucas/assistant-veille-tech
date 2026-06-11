@@ -24,6 +24,12 @@ export async function fetchTopics(): Promise<Topic[]> {
   return res.json();
 }
 
+export async function setTopics(): Promise<Topic[]> {
+  const res = await fetch(`${API_URL}/topics`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`topics: ${res.status}`);
+  return res.json();
+}
+
 export async function postChat(
   question: string,
   topics: string[],
