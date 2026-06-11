@@ -13,8 +13,7 @@
 #             └─> parser.quoted_tweet_url(tweet)
 #             └─> _fetch_full_article(tweet_url)       (async, via md.genedai.me)
 #         └─> ... (repeat for all topics)
-#     └─> _upsert(articles)                 (static, si articles trouvés)
-#         └─> _split_content(content)       (static, découpe le contenu en chunks)
+#     └─> upsert_articles(articles)           (si articles trouvés)
 #         └─> get_collection(), embed(), print_db_stats()
 #
 # Les fonctions statiques servent à la normalisation et l'extraction de données spécifiques.
@@ -23,7 +22,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -31,15 +29,14 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import ValidationError
 from twikit import Client
 from twikit.errors import NotFound, TwitterException
 
 from app.config import Settings, get_settings
+from app.ingest.chroma_upsert import upsert_articles
+from app.ingest.utils import stable_id
 from . import parser
-from app.rag.chroma_client import get_collection, print_db_stats
-from app.rag.retrieval import embed
 from app.schemas import Article
 
 logger = logging.getLogger(__name__)
@@ -51,12 +48,6 @@ _MAX_AGE_DAYS = 60     # filtre 2 mois
 _SEARCH_TYPE = "Top"
 _MAX_TOPIC_RETRIES = 5
 _MD_GENEDAI_BASE = "https://md.genedai.me"
-_CHUNK_SIZE = 2000  # ~400 mots / ~500 tokens en francais
-_CHUNK_OVERLAP = 200  # ~10 % d'overlap
-
-
-def _stable_id(url: str) -> str:
-    return hashlib.sha1(url.encode()).hexdigest()
 
 
 @dataclass
@@ -81,7 +72,7 @@ class TwitterIngester:
         articles = asyncio.run(self._fetch_articles_for_topics(topics))
 
         if articles:
-            self._upsert(articles)
+            upsert_articles(articles)
 
         return [a.model_dump() for a in articles]
 
@@ -228,7 +219,7 @@ class TwitterIngester:
 
         try:
             return Article(
-                id=_stable_id(article_url),
+                id=stable_id(article_url),
                 title=article_title,
                 source_name=screen_name,
                 source_type="x-article",
@@ -242,56 +233,3 @@ class TwitterIngester:
         except ValidationError as exc:
             logger.warning("validation failed for %s: %s", article_url, exc)
             return None
-
-    @staticmethod
-    def _split_content(content: str) -> list[str]:
-        """Split the content into chunks."""
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=_CHUNK_SIZE,
-            chunk_overlap=_CHUNK_OVERLAP,
-        )
-        return splitter.split_text(content)
-
-    @staticmethod
-    def _upsert(articles: list[Article]) -> None:
-        """Upsert the given articles into the database."""
-        print(f"upserting {len(articles)} articles into chroma...")
-        collection = get_collection()
-        ids: list[str] = []
-        documents: list[str] = []
-        embeddings: list[list[float]] = []
-        metadatas: list[dict[str, Any]] = []
-
-        for article in articles:
-            chunks = TwitterIngester._split_content(article.content)
-            print(f"chunks: {chunks}")
-            base_meta = {
-                "source_type": article.source_type,
-                "source_name": article.source_name,
-                "date_published": article.date_published.isoformat()
-                if article.date_published
-                else "",
-                "date_collected": article.date_collected.isoformat()
-                if article.date_collected
-                else "",
-                "tags": ",".join(article.tags),
-                "url": str(article.url),
-                "title": article.title,
-                "lang": article.lang,
-                "chunk_total": len(chunks),
-            }
-            for i, chunk in enumerate(chunks):
-                ids.append(f"{article.id}_chunk_{i + 1}")
-                documents.append(chunk)
-                embeddings.append(embed(chunk))
-                metadatas.append({**base_meta, "chunk_index": i})
-
-        collection.upsert(
-            ids=ids,
-            documents=documents,
-            embeddings=embeddings,
-            metadatas=metadatas,
-        )
-        logger.info("upserted %d chunks from %d articles", len(ids), len(articles))
-        print(f"\nupserted {len(ids)} chunks from {len(articles)} articles into chroma")
-        print_db_stats()

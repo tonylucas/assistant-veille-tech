@@ -5,8 +5,7 @@
 #     └─> _fetch_topic(client, topic)             (par topic)
 #         └─> _fetch_page(client, topic, page)    (par page)
 #         └─> _normalize(raw)                     (static, normalise chaque article brut)
-#     └─> _upsert(articles)                       (static, si articles trouvés)
-#         └─> _split_content(content)             (static, découpe le contenu en chunks)
+#     └─> upsert_articles(articles)               (si articles trouvés)
 #         └─> get_collection(), embed(), print_db_stats()
 #
 # Les fonctions statiques servent à la normalisation et à la découpe du contenu.
@@ -14,18 +13,16 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import ValidationError
 
 from app.config import Settings, get_settings
-from app.rag.chroma_client import get_collection, print_db_stats
-from app.rag.retrieval import embed
+from app.ingest.chroma_upsert import upsert_articles
+from app.ingest.utils import stable_id
 from app.schemas import Article
 
 logger = logging.getLogger(__name__)
@@ -37,11 +34,6 @@ _MAX_PAGES = 5
 _REMOVE_DUPLICATE = 1
 _SORT = "relevancy"
 _EXCLUDE_FIELD = "sentiment,sentiment_stats,ai_tag,ai_region,ai_org,ai_summary,content"
-_CHUNK_SIZE = 2000  # ~400 mots / ~500 tokens en francais
-_CHUNK_OVERLAP = 200  # ~10 % d'overlap
-
-def _stable_id(url: str) -> str:
-    return hashlib.sha1(url.encode()).hexdigest()
 
 
 @dataclass
@@ -73,7 +65,7 @@ class NewsApiIngester:
                     logger.warning("topic %r failed: %s", topic, exc)
 
         if articles:
-            self._upsert(articles)
+            upsert_articles(articles)
 
         return [a.model_dump() for a in articles]
  
@@ -137,7 +129,7 @@ class NewsApiIngester:
 
         try:
             return Article(
-                id=_stable_id(url),
+                id=stable_id(url),
                 title=raw.get("title") or "",
                 source_name=raw.get("source_name") or "unknown",
                 source_type="news_article",
@@ -150,54 +142,3 @@ class NewsApiIngester:
         except ValidationError as exc:
             logger.warning("validation failed for %s: %s", url, exc)
             return None
-
-    @staticmethod
-    def _split_content(content: str) -> list[str]:
-        """Split the content into chunks."""
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=_CHUNK_SIZE,
-            chunk_overlap=_CHUNK_OVERLAP,
-        )
-        return splitter.split_text(content)
-
-    @staticmethod
-    def _upsert(articles: list[Article]) -> None:
-        """Upsert the given articles into the database."""
-        print(f"upserting {len(articles)} articles into chroma...")
-        collection = get_collection()
-        ids: list[str] = []
-        documents: list[str] = []
-        embeddings: list[list[float]] = []
-        metadatas: list[dict[str, Any]] = []
-
-        for article in articles:
-            chunks = NewsApiIngester._split_content(article.content)
-            base_meta = {
-                "source_type": article.source_type,
-                "source_name": article.source_name,
-                "date_published": article.date_published.isoformat()
-                if article.date_published
-                else "",
-                "date_collected": article.date_collected.isoformat()
-                if article.date_collected
-                else "",
-                "tags": ",".join(article.tags),
-                "url": str(article.url),
-                "title": article.title,
-                "chunk_total": len(chunks),
-            }
-            for i, chunk in enumerate(chunks):
-                ids.append(f"{article.id}_chunk_{i + 1}")
-                documents.append(chunk)
-                embeddings.append(embed(chunk))
-                metadatas.append({**base_meta, "chunk_index": i})
-
-        collection.upsert(
-            ids=ids,
-            documents=documents,
-            embeddings=embeddings,
-            metadatas=metadatas,
-        )
-        logger.info("upserted %d chunks from %d articles", len(ids), len(articles))
-        print(f"\nupserted {len(ids)} chunks from {len(articles)} articles into chroma")
-        print_db_stats()
