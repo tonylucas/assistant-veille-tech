@@ -16,6 +16,7 @@
 #             └─> _fetch_full_article(tweet_url)       (async, via md.genedai.me)
 #         └─> ... (repeat for all topics)
 #     └─> _upsert(articles)                 (static, si articles trouvés)
+#         └─> _split_content(content)       (static, découpe le contenu en chunks)
 #         └─> get_collection(), embed(), print_db_stats()
 #
 # Les fonctions statiques servent à la normalisation et l'extraction de données spécifiques.
@@ -32,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import ValidationError
 from twikit import Client
 from twikit.errors import NotFound, TwitterException
@@ -50,6 +52,8 @@ _MAX_AGE_DAYS = 60     # filtre 2 mois
 _SEARCH_TYPE = "Top"
 _MAX_TOPIC_RETRIES = 5
 _MD_GENEDAI_BASE = "https://md.genedai.me"
+_CHUNK_SIZE = 2000  # ~400 mots / ~500 tokens en francais
+_CHUNK_OVERLAP = 200  # ~10 % d'overlap
 
 
 def _stable_id(url: str) -> str:
@@ -318,9 +322,18 @@ class TwitterIngester:
             return None
 
     @staticmethod
+    def _split_content(content: str) -> list[str]:
+        """Split the content into chunks."""
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=_CHUNK_SIZE,
+            chunk_overlap=_CHUNK_OVERLAP,
+        )
+        return splitter.split_text(content)
+
+    @staticmethod
     def _upsert(articles: list[Article]) -> None:
         """Upsert the given articles into the database."""
-        logger.info("upserting %d articles into chroma...", len(articles))
+        print(f"upserting {len(articles)} articles into chroma...")
         collection = get_collection()
         ids: list[str] = []
         documents: list[str] = []
@@ -328,25 +341,28 @@ class TwitterIngester:
         metadatas: list[dict[str, Any]] = []
 
         for article in articles:
-            ids.append(article.id)
-            documents.append(article.content)
-            embeddings.append(embed(article.content))
-            metadatas.append(
-                {
-                    "source_type": article.source_type,
-                    "source_name": article.source_name,
-                    "date_published": article.date_published.isoformat()
-                    if article.date_published
-                    else "",
-                    "date_collected": article.date_collected.isoformat()
-                    if article.date_collected
-                    else "",
-                    "tags": ",".join(article.tags),
-                    "url": str(article.url),
-                    "title": article.title,
-                    "lang": article.lang,
-                }
-            )
+            chunks = TwitterIngester._split_content(article.content)
+            print(f"chunks: {chunks}")
+            base_meta = {
+                "source_type": article.source_type,
+                "source_name": article.source_name,
+                "date_published": article.date_published.isoformat()
+                if article.date_published
+                else "",
+                "date_collected": article.date_collected.isoformat()
+                if article.date_collected
+                else "",
+                "tags": ",".join(article.tags),
+                "url": str(article.url),
+                "title": article.title,
+                "lang": article.lang,
+                "chunk_total": len(chunks),
+            }
+            for i, chunk in enumerate(chunks):
+                ids.append(f"{article.id}_chunk_{i + 1}")
+                documents.append(chunk)
+                embeddings.append(embed(chunk))
+                metadatas.append({**base_meta, "chunk_index": i})
 
         collection.upsert(
             ids=ids,
@@ -354,5 +370,6 @@ class TwitterIngester:
             embeddings=embeddings,
             metadatas=metadatas,
         )
-        logger.info("upserted %d articles", len(ids))
+        logger.info("upserted %d chunks from %d articles", len(ids), len(articles))
+        print(f"\nupserted {len(ids)} chunks from {len(articles)} articles into chroma")
         print_db_stats()
