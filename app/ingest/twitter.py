@@ -1,3 +1,26 @@
+# ---------------------------------------------------------------
+# Flux d'appel des fonctions principales (call flow):
+#
+# TwitterIngester.run(topics)
+#     └─> _fetch_articles_for_topics(topics)(async)
+#         └─> _get_client()                 (async)
+#             └─> _login()                  (async, si cookies invalides/absents)
+#         └─> _fetch_topic_with_retry(client, topic) (async, retry 404 ×5)
+#             └─> _fetch_topic(client, topic)        (async, par topic)
+#             └─> _extract_article_id_from_quoted_status_result(tweet) (static)
+#             └─> _normalize(tweet, ...)    (static)
+#                 └─> _quoted_article_result(tweet)  (static)
+#                 └─> _extract_article_title(tweet)  (static)
+#                 └─> _article_url(tweet)            (static)
+#             └─> _quoted_tweet_url(tweet)             (static)
+#             └─> _fetch_full_article(tweet_url)       (async, via md.genedai.me)
+#         └─> ... (repeat for all topics)
+#     └─> _upsert(articles)                 (static, si articles trouvés)
+#         └─> get_collection(), embed(), print_db_stats()
+#
+# Les fonctions statiques servent à la normalisation et l'extraction de données spécifiques.
+# ---------------------------------------------------------------
+
 from __future__ import annotations
 
 import asyncio
@@ -7,11 +30,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-import json
 
+import httpx
 from pydantic import ValidationError
 from twikit import Client
-from twikit.errors import TwitterException
+from twikit.errors import NotFound, TwitterException
 
 from app.config import Settings, get_settings
 from app.rag.chroma_client import get_collection, print_db_stats
@@ -25,7 +48,9 @@ _COUNT_PER_PAGE = 20
 _MAX_PAGES = 5         # 5 × 20 = 100 tweets examinés par topic
 _MAX_AGE_DAYS = 60     # filtre 2 mois
 _SEARCH_TYPE = "Top"
-_TITLE_MAX_LEN = 100
+_MAX_TOPIC_RETRIES = 5
+_MD_GENEDAI_BASE = "https://md.genedai.me"
+
 
 def _stable_id(url: str) -> str:
     return hashlib.sha1(url.encode()).hexdigest()
@@ -43,14 +68,14 @@ class TwitterIngester:
     # ── public ───────────────────────────────────────────────
 
     def run(self, topics: list[str]) -> list[dict[str, Any]]:
+        """Fetch articles for the given topics and upsert them into the database."""
         if not topics:
             return []
 
         topics = list(dict.fromkeys(topics))
-
         self._seen_ids.clear()
 
-        articles = asyncio.run(self._async_run(topics))
+        articles = asyncio.run(self._fetch_articles_for_topics(topics))
 
         if articles:
             self._upsert(articles)
@@ -59,19 +84,38 @@ class TwitterIngester:
 
     # ── private ──────────────────────────────────────────────
 
-    async def _async_run(self, topics: list[str]) -> list[Article]:
+    async def _fetch_articles_for_topics(self, topics: list[str]) -> list[Article]:
+        """Fetch articles for the given topics and return them as a list of Article objects."""
         client = await self._get_client()
         articles: list[Article] = []
 
         for topic in topics:
-            try:
-                articles.extend(await self._fetch_topic(client, topic))
-            except TwitterException as exc:
-                logger.warning("topic %r failed: %s", topic, exc)
+            articles.extend(await self._fetch_topic_with_retry(client, topic))
 
         return articles
 
+    async def _fetch_topic_with_retry(self, client: Client, topic: str) -> list[Article]:
+        """Fetch a topic, retrying up to _MAX_TOPIC_RETRIES times on 404."""
+        for attempt in range(1, _MAX_TOPIC_RETRIES + 1):
+            try:
+                return await self._fetch_topic(client, topic)
+            except NotFound:
+                if attempt < _MAX_TOPIC_RETRIES:
+                    logger.warning(
+                        "topic %r 404 (attempt %d/%d), retrying...",
+                        topic, attempt, _MAX_TOPIC_RETRIES,
+                    )
+                    await asyncio.sleep(1)
+                    continue
+                logger.warning("topic %r failed after %d attempts: 404", topic, _MAX_TOPIC_RETRIES)
+                return []
+            except TwitterException as exc:
+                logger.warning("topic %r failed: %s", topic, exc)
+                return []
+        return []
+
     async def _get_client(self) -> Client:
+        """Get a client for the Twitter API."""
         assert self.settings is not None
         client = Client(language=_LANGUAGE)
         cookies_path = Path(self.settings.twitter_cookies_path)
@@ -87,6 +131,7 @@ class TwitterIngester:
         return client
 
     async def _login(self, client: Client, cookies_path: Path) -> None:
+        """Login to the Twitter API."""
         assert self.settings is not None
         await client.login(
             auth_info_1=self.settings.twitter_username,
@@ -97,6 +142,7 @@ class TwitterIngester:
         client.save_cookies(str(cookies_path))
 
     async def _fetch_topic(self, client: Client, topic: str) -> list[Article]:
+        """Fetch articles for the given topic and return them as a list of Article objects."""
         query = f"{topic} lang:{_LANGUAGE}"
         cutoff = datetime.now(timezone.utc) - timedelta(days=_MAX_AGE_DAYS)
 
@@ -106,16 +152,23 @@ class TwitterIngester:
         for page in range(_MAX_PAGES):
             page_articles = 0
             for tweet in result:
-                if getattr(tweet, "lang", None) not in (None, _LANGUAGE):
+                if not self._extract_article_id_from_quoted_status_result(tweet):
                     continue
+
+                tweet_url = self._quoted_tweet_url(tweet)
+                if not tweet_url:
+                    continue
+
                 article = self._normalize(tweet, topic, cutoff)
                 if article is None or article.id in self._seen_ids:
                     continue
 
-                full_text = await self._fetch_full_article(client, tweet.id)
-
+                full_text = await self._fetch_full_article(tweet_url)
                 if full_text:
                     article = article.model_copy(update={"content": full_text})
+
+                if not article.content:
+                    continue
 
                 self._seen_ids.add(article.id)
                 articles.append(article)
@@ -133,62 +186,11 @@ class TwitterIngester:
         logger.info("topic=%r total_articles=%d", topic, len(articles))
         return articles
 
-    @staticmethod
-    def _article_url(tweet: Any) -> str | None:
-        """
-        Retourne l'URL x.com/{user}/article/... si le tweet est un article X, sinon None.
-        Nouvelle version : cherche dans quoted_status_result > article > article_results > result > rest_id
-        et remonte l'URL canonique de l'article si possible.
-
-        Cette méthode est adaptée au format observé dans article.json (tweet data logué à la main).
-        """
-        data = getattr(tweet, "_data", {})
-        rest_id = data.get("legacy", {}).get("quoted_status_id_str", "")
-        if rest_id:
-            # On va tenter de retrouver le nom d'utilisateur original pour le coller dans l'URL canonique
-            qsr_core_user = (
-                data.get("quoted_status_result", {})
-                .get("result", {})
-                .get("core", {})
-                .get("user_results", {})
-                .get("result", {})
-                .get("legacy", {})
-            )
-            screen_name = qsr_core_user.get("screen_name", "unknown")
-            return f"https://x.com/{screen_name}/article/{rest_id}"
-
-        # Si on ne trouve pas, fallback sur l'ancien comportement (par sécurité)
-        urls = (
-            data
-            .get("legacy", {})
-            .get("entities", {})
-            .get("urls", [])
-        )
-        for u in urls:
-            expanded = u.get("expanded_url", "")
-            if ("x.com" in expanded or "twitter.com" in expanded) and "/article/" in expanded:
-                return expanded
-        return None
+    # ── static helpers ────────────────────────────────────────
 
     @staticmethod
-    async def _fetch_full_article(client: Client, tweet_id: str) -> str | None:
-        """Second appel avec fieldToggles article pour récupérer le contenu complet."""
-        try:
-            tweet = await client.get_tweet_by_id(tweet_id)
-            article_data = (
-                tweet._data
-                .get("article", {})
-                .get("article_results", {})
-                .get("result", {})
-            )
-            return article_data.get("plain_text") or article_data.get("preview_text") or None
-        except Exception as exc:
-            logger.warning("_fetch_full_article(%s) failed: %s", tweet_id, exc)
-            return None
-
-    @staticmethod
-    def _extract_article_title(tweet: Any) -> str | None:
-        """Extract the title of an article from a tweet. Return None if tweet is not an article."""
+    def _quoted_article_result(tweet: Any) -> dict[str, Any]:
+        """Return the quoted article result from the tweet, or {} if absent."""
         try:
             data = getattr(tweet, "_data", {})
             return (
@@ -197,21 +199,94 @@ class TwitterIngester:
                 .get("article", {})
                 .get("article_results", {})
                 .get("result", {})
-                .get("title", "")
-            )
+            ) or {}
+        except (AttributeError, TypeError):
+            return {}
+
+    @staticmethod
+    def _extract_article_id_from_quoted_status_result(tweet: Any) -> str | None:
+        """Return the tweet's article ID, or None if not an article tweet."""
+        try:
+            data = getattr(tweet, "_data", {})
+            qsr_result = data.get("quoted_status_result", {}).get("result", {})
+            if not qsr_result.get("article"):
+                return None
+            return qsr_result.get("rest_id") or None
         except (AttributeError, KeyError, TypeError):
             return None
 
     @staticmethod
-    def _normalize(tweet: Any, topic: str, cutoff: datetime) -> Article | None:
-        article_title = TwitterIngester._extract_article_title(tweet)
+    def _extract_article_title(tweet: Any) -> str | None:
+        """Return the title of the article quoted in the tweet, or None."""
+        return TwitterIngester._quoted_article_result(tweet).get("title") or None
 
-        if not article_title:
+    @staticmethod
+    def _quoted_tweet_url(tweet: Any) -> str | None:
+        """Return the URL of the quoted article tweet, or None."""
+        try:
+            data = getattr(tweet, "_data", {})
+            qsr_result = data.get("quoted_status_result", {}).get("result", {})
+            if not qsr_result.get("article"):
+                return None
+            tweet_id = qsr_result.get("rest_id")
+            if not tweet_id:
+                return None
+            screen_name = (
+                qsr_result.get("core", {})
+                .get("user_results", {})
+                .get("result", {})
+                .get("legacy", {})
+                .get("screen_name", "i")
+            )
+            return f"https://x.com/{screen_name}/status/{tweet_id}"
+        except (AttributeError, TypeError):
             return None
 
+    @staticmethod
+    def _article_url(tweet: Any) -> str | None:
+        """Return the URL of the article, or None."""
+        article_entity_id = TwitterIngester._quoted_article_result(tweet).get("rest_id")
+        if article_entity_id:
+            return f"https://x.com/i/article/{article_entity_id}"
+        # Fallback: URL present in the quoted tweet's entities
+        try:
+            data = getattr(tweet, "_data", {})
+            urls = (
+                data.get("quoted_status_result", {})
+                .get("result", {})
+                .get("legacy", {})
+                .get("entities", {})
+                .get("urls", [])
+            )
+            for u in urls:
+                if "/article/" in u.get("expanded_url", ""):
+                    return u["expanded_url"]
+        except (AttributeError, TypeError):
+            pass
+        return None
+
+    @staticmethod
+    async def _fetch_full_article(tweet_url: str) -> str | None:
+        """Fetch the full article content as markdown via md.genedai.me, or None if failed."""
+        url = f"{_MD_GENEDAI_BASE}/{tweet_url}?raw=true"
+        try:
+            async with httpx.AsyncClient(timeout=30) as http:
+                response = await http.get(url)
+                response.raise_for_status()
+                return response.text.strip() or None
+        except httpx.HTTPError as exc:
+            logger.warning("_fetch_full_article(%s) failed: %s", tweet_url, exc)
+            return None
+
+    @staticmethod
+    def _normalize(tweet: Any, topic: str, cutoff: datetime) -> Article | None:
+        """Normalize a tweet into an Article, or None if failed."""
         article_url = TwitterIngester._article_url(tweet)
-        content = (tweet.text or "").strip()
-        if not content:
+        if not article_url:
+            return None
+
+        article_title = TwitterIngester._extract_article_title(tweet)
+        if not article_title:
             return None
 
         try:
@@ -233,7 +308,7 @@ class TwitterIngester:
                 source_type="x-article",
                 date_published=date_published,
                 date_collected=datetime.now(timezone.utc),
-                content=content,
+                content="",
                 url=article_url,
                 tags=list(dict.fromkeys(tags)),
                 lang=tweet.lang,
@@ -244,18 +319,15 @@ class TwitterIngester:
 
     @staticmethod
     def _upsert(articles: list[Article]) -> None:
-        print(f"upserting {len(articles)} tweets into chroma...")
+        """Upsert the given articles into the database."""
+        logger.info("upserting %d articles into chroma...", len(articles))
         collection = get_collection()
         ids: list[str] = []
         documents: list[str] = []
         embeddings: list[list[float]] = []
         metadatas: list[dict[str, Any]] = []
 
-        print(f"articles[0]: {articles[0].model_dump()}")
         for article in articles:
-            if article is None:
-                continue
-            print(f"title: {article.title[:100]}..., url: {article.url}, lang: {article.lang}")
             ids.append(article.id)
             documents.append(article.content)
             embeddings.append(embed(article.content))
@@ -282,6 +354,5 @@ class TwitterIngester:
             embeddings=embeddings,
             metadatas=metadatas,
         )
-        logger.info("upserted %d tweets", len(ids))
-        print(f"\nupserted {len(ids)} tweets into chroma")
+        logger.info("upserted %d articles", len(ids))
         print_db_stats()
