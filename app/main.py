@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.chat import handle_chat
-from app.ingest.topics import save_topics
+from app.ingest.topics import load_topics, save_topics
 from app.ingest.news_api import NewsApiIngester
 from app.ingest.twitter import TwitterIngester
 from app.schemas import ChatRequest, ChatResponse, Topic
@@ -40,24 +40,24 @@ class IngestRequest(BaseModel):
 
 
 class IngestResponse(BaseModel):
-    topics: list[str]
+    topics: list[Topic]
     news_count: int
     twitter_count: int
 
 
 @app.get("/topics", response_model=list[Topic])
 def topics() -> list[Topic]:
-    return POPULAR_TOPICS
+    return load_topics()
 
 
 @app.post("/topics", response_model=IngestResponse)
 def ingest_topics(req: IngestRequest) -> IngestResponse:
     resolved = list(dict.fromkeys(req.topics))
-    save_topics(resolved)
+    saved_topics = save_topics(resolved)
     news_results = NewsApiIngester().run(resolved)
     twitter_results = TwitterIngester().run(resolved)
     return IngestResponse(
-        topics=resolved,
+        topics=saved_topics,
         news_count=len(news_results),
         twitter_count=len(twitter_results),
     )

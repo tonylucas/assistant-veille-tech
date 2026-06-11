@@ -10,7 +10,7 @@ import typer
 from app.ingest.topics import load_topics, save_topics
 from app.ingest.news_api import NewsApiIngester
 from app.ingest.twitter import TwitterIngester
-
+from app.rag.chroma_client import delete_collection
 app = typer.Typer(help="Ingestion CLI for the veille tech index.")
 
 
@@ -21,12 +21,13 @@ def ingest(
     ),
 ) -> None:
     """Save topics then run all ingesters (NewsAPI + Twitter)."""
-    resolved = list(dict.fromkeys(topics)) if topics else load_topics()
+    resolved = list(dict.fromkeys(topics)) if topics else [topic['slug'] for topic in load_topics()]
     if not resolved:
         typer.echo("No topics provided and none saved. Use --topic.", err=True)
         raise typer.Exit(code=1)
 
-    save_topics(resolved)
+    if topics:
+        save_topics(resolved)
     typer.echo(f"Topics: {resolved}")
 
     typer.echo("=== NewsAPI ===")
