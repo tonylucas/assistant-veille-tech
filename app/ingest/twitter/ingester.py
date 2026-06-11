@@ -7,12 +7,10 @@
 #             └─> _login()                  (async, si cookies invalides/absents)
 #         └─> _fetch_topic_with_retry(client, topic) (async, retry 404 ×5)
 #             └─> _fetch_topic(client, topic)        (async, par topic)
-#             └─> _extract_article_id_from_quoted_status_result(tweet) (static)
+#             └─> parser.extract_article_id_from_quoted_status_result(tweet)
 #             └─> _normalize(tweet, ...)    (static)
-#                 └─> _quoted_article_result(tweet)  (static)
-#                 └─> _extract_article_title(tweet)  (static)
-#                 └─> _article_url(tweet)            (static)
-#             └─> _quoted_tweet_url(tweet)             (static)
+#                 └─> parser.article_url, parser.extract_article_title
+#             └─> parser.quoted_tweet_url(tweet)
 #             └─> _fetch_full_article(tweet_url)       (async, via md.genedai.me)
 #         └─> ... (repeat for all topics)
 #     └─> _upsert(articles)                 (static, si articles trouvés)
@@ -39,6 +37,7 @@ from twikit import Client
 from twikit.errors import NotFound, TwitterException
 
 from app.config import Settings, get_settings
+from . import parser
 from app.rag.chroma_client import get_collection, print_db_stats
 from app.rag.retrieval import embed
 from app.schemas import Article
@@ -156,10 +155,10 @@ class TwitterIngester:
         for page in range(_MAX_PAGES):
             page_articles = 0
             for tweet in result:
-                if not self._extract_article_id_from_quoted_status_result(tweet):
+                if not parser.extract_article_id_from_quoted_status_result(tweet):
                     continue
 
-                tweet_url = self._quoted_tweet_url(tweet)
+                tweet_url = parser.quoted_tweet_url(tweet)
                 if not tweet_url:
                     continue
 
@@ -193,83 +192,6 @@ class TwitterIngester:
     # ── static helpers ────────────────────────────────────────
 
     @staticmethod
-    def _quoted_article_result(tweet: Any) -> dict[str, Any]:
-        """Return the quoted article result from the tweet, or {} if absent."""
-        try:
-            data = getattr(tweet, "_data", {})
-            return (
-                data.get("quoted_status_result", {})
-                .get("result", {})
-                .get("article", {})
-                .get("article_results", {})
-                .get("result", {})
-            ) or {}
-        except (AttributeError, TypeError):
-            return {}
-
-    @staticmethod
-    def _extract_article_id_from_quoted_status_result(tweet: Any) -> str | None:
-        """Return the tweet's article ID, or None if not an article tweet."""
-        try:
-            data = getattr(tweet, "_data", {})
-            qsr_result = data.get("quoted_status_result", {}).get("result", {})
-            if not qsr_result.get("article"):
-                return None
-            return qsr_result.get("rest_id") or None
-        except (AttributeError, KeyError, TypeError):
-            return None
-
-    @staticmethod
-    def _extract_article_title(tweet: Any) -> str | None:
-        """Return the title of the article quoted in the tweet, or None."""
-        return TwitterIngester._quoted_article_result(tweet).get("title") or None
-
-    @staticmethod
-    def _quoted_tweet_url(tweet: Any) -> str | None:
-        """Return the URL of the quoted article tweet, or None."""
-        try:
-            data = getattr(tweet, "_data", {})
-            qsr_result = data.get("quoted_status_result", {}).get("result", {})
-            if not qsr_result.get("article"):
-                return None
-            tweet_id = qsr_result.get("rest_id")
-            if not tweet_id:
-                return None
-            screen_name = (
-                qsr_result.get("core", {})
-                .get("user_results", {})
-                .get("result", {})
-                .get("legacy", {})
-                .get("screen_name", "i")
-            )
-            return f"https://x.com/{screen_name}/status/{tweet_id}"
-        except (AttributeError, TypeError):
-            return None
-
-    @staticmethod
-    def _article_url(tweet: Any) -> str | None:
-        """Return the URL of the article, or None."""
-        article_entity_id = TwitterIngester._quoted_article_result(tweet).get("rest_id")
-        if article_entity_id:
-            return f"https://x.com/i/article/{article_entity_id}"
-        # Fallback: URL present in the quoted tweet's entities
-        try:
-            data = getattr(tweet, "_data", {})
-            urls = (
-                data.get("quoted_status_result", {})
-                .get("result", {})
-                .get("legacy", {})
-                .get("entities", {})
-                .get("urls", [])
-            )
-            for u in urls:
-                if "/article/" in u.get("expanded_url", ""):
-                    return u["expanded_url"]
-        except (AttributeError, TypeError):
-            pass
-        return None
-
-    @staticmethod
     async def _fetch_full_article(tweet_url: str) -> str | None:
         """Fetch the full article content as markdown via md.genedai.me, or None if failed."""
         url = f"{_MD_GENEDAI_BASE}/{tweet_url}?raw=true"
@@ -285,11 +207,11 @@ class TwitterIngester:
     @staticmethod
     def _normalize(tweet: Any, topic: str, cutoff: datetime) -> Article | None:
         """Normalize a tweet into an Article, or None if failed."""
-        article_url = TwitterIngester._article_url(tweet)
+        article_url = parser.article_url(tweet)
         if not article_url:
             return None
 
-        article_title = TwitterIngester._extract_article_title(tweet)
+        article_title = parser.extract_article_title(tweet)
         if not article_title:
             return None
 

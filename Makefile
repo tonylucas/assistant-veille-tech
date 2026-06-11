@@ -1,4 +1,4 @@
-.PHONY: up down logs install test fmt lint typecheck ingest chat-test
+.PHONY: up down logs install test fmt lint typecheck ingest delete-and-ingest chat-test
 
 install:
 	uv sync
@@ -26,7 +26,7 @@ typecheck:
 	uv run mypy app
 
 ingest:
-	PYTHONPATH=. uv run python scripts/ingest_cli.py
+	PYTHONPATH=. uv run python scripts/ingest_cli.py ingest
 
 delete-and-ingest:
 	PYTHONPATH=. uv run python scripts/ingest_cli.py delete-and-ingest
