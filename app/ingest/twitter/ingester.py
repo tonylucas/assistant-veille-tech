@@ -183,16 +183,16 @@ class TwitterIngester:
     # ── static helpers ────────────────────────────────────────
 
     @staticmethod
-    async def _fetch_full_article(tweet_url: str) -> str | None:
+    async def _fetch_full_article(article_url: str) -> str | None:
         """Fetch the full article content as markdown via md.genedai.me, or None if failed."""
-        url = f"{_MD_GENEDAI_BASE}/{tweet_url}?raw=true"
+        url = f"{_MD_GENEDAI_BASE}/{article_url}?raw=true"
         try:
             async with httpx.AsyncClient(timeout=30) as http:
                 response = await http.get(url)
                 response.raise_for_status()
                 return response.text.strip() or None
         except httpx.HTTPError as exc:
-            logger.warning("_fetch_full_article(%s) failed: %s", tweet_url, exc)
+            logger.warning("_fetch_full_article(%s) failed: %s", article_url, exc)
             return None
 
     @staticmethod
