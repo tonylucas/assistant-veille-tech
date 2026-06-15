@@ -30,10 +30,11 @@ logger = logging.getLogger(__name__)
 _ENDPOINT = "latest"
 _LANGUAGE = "fr"
 _PAGE_SIZE = 10
-_MAX_PAGES = 5
+_MAX_PAGES = 2
 _REMOVE_DUPLICATE = 1
 _SORT = "relevancy"
 _EXCLUDE_FIELD = "sentiment,sentiment_stats,ai_tag,ai_region,ai_org,ai_summary,content"
+_CATEGORIES = ["technology"]
 
 
 @dataclass
@@ -107,6 +108,7 @@ class NewsApiIngester:
                 "language": _LANGUAGE,
                 "removeDuplicate": _REMOVE_DUPLICATE,
                 "excludefield": _EXCLUDE_FIELD,
+                "category": _CATEGORIES,
             },
             headers={"X-ACCESS-KEY": self.settings.news_api_key},
         )
