@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.ingest.chroma_upsert import _split_content
+from app.ingest.chroma_upsert import split_content
 from app.ingest.news_api import NewsApiIngester
 from tests.acceptance.ingest_helpers import assert_normalized_articles, assert_unique_urls
 from tests.acceptance.news_api_fakes import mock_news_api
@@ -29,13 +29,13 @@ def test_run_tags_contain_category_and_keywords(news_api_mock) -> None:
 
 def test_split_content_chunks_long_text() -> None:
     long_text = "Phrase de veille technologique. " * 400
-    chunks = _split_content(long_text)
+    chunks = split_content(long_text)
     assert len(chunks) > 1
     assert all(chunk.strip() for chunk in chunks)
 
 
 def test_split_content_keeps_short_text_single_chunk() -> None:
-    chunks = _split_content("Un court article.")
+    chunks = split_content("Un court article.")
     assert chunks == ["Un court article."]
 
 

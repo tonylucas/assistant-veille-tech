@@ -9,7 +9,7 @@ from langchain_azure_ai.chat_models import AzureAIChatCompletionsModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import get_settings
-from app.schemas import ArticleCard, ChatResponse
+from app.schemas import Article, ArticleCard, ChatResponse
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def get_llm() -> AzureAIChatCompletionsModel | None:
     )
 
 
-def _format_context(retrieved: list[dict[str, Any]], fresh: list[dict[str, Any]]) -> str:
+def _format_context(retrieved: list[dict[str, Any]], fresh: list[Article]) -> str:
     parts: list[str] = []
     if retrieved:
         parts.append("## Index interne")
@@ -51,14 +51,14 @@ def _format_context(retrieved: list[dict[str, Any]], fresh: list[dict[str, Any]]
         parts.append("## Actualité fraîche")
         for i, art in enumerate(fresh, 1):
             parts.append(
-                f"[F{i}] {art.get('title', '')} — {art.get('source', '')} "
-                f"({art.get('date', '')})\n{art.get('content', '')[:600]}\n{art.get('url', '')}"
+                f"[F{i}] {art.title} — {art.source_name} "
+                f"({art.date_published})\n{art.content[:600]}\n{art.url}"
             )
     return "\n\n".join(parts) if parts else "(aucune source disponible)"
 
 
 def _build_cards(
-    retrieved: list[dict[str, Any]], fresh: list[dict[str, Any]]
+    retrieved: list[dict[str, Any]], fresh: list[Article]
 ) -> list[ArticleCard]:
     cards: list[ArticleCard] = []
     for chunk in retrieved:
@@ -77,12 +77,12 @@ def _build_cards(
     for art in fresh:
         cards.append(
             ArticleCard(
-                title=art.get("title", "Sans titre"),
-                source=art.get("source", "newsapi"),
-                date=art.get("date"),
-                snippet=(art.get("content") or art.get("description") or "")[:280],
-                url=art.get("url", ""),
-                tags=art.get("tags", []),
+                title=art.title,
+                source=art.source_name,
+                date=str(art.date_published) if art.date_published else None,
+                snippet=art.content[:280],
+                url=str(art.url),
+                tags=art.tags,
             )
         )
     return cards
@@ -103,7 +103,7 @@ async def compose_answer(
     question: str,
     topics: list[str],
     retrieved_chunks: list[dict[str, Any]],
-    fresh_articles: list[dict[str, Any]],
+    fresh_articles: list[Article],
 ) -> ChatResponse:
     cards = _build_cards(retrieved_chunks, fresh_articles)
 

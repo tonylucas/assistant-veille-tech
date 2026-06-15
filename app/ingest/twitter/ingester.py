@@ -220,7 +220,7 @@ class TwitterIngester:
         try:
             return Article(
                 id=stable_id(article_url),
-                title=article_title,
+                title=article_title or "Sans titre",
                 source_name=screen_name,
                 source_type="x-article",
                 date_published=date_published,

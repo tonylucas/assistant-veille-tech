@@ -2,17 +2,19 @@
 # Flux d'appel des fonctions principales (call flow):
 #
 # NewsApiIngester.run(topics)
-#     └─> _fetch_topic(client, topic)             (par topic)
-#         └─> _fetch_page(client, topic, page)    (par page)
-#         └─> _normalize(raw)                     (static, normalise chaque article brut)
-#     └─> upsert_articles(articles)               (si articles trouvés)
-#         └─> get_collection(), embed(), print_db_stats()
+#     └─> asyncio.run(_fetch_all(topics))
+#         └─> _fetch_topic(client, topic)             (par topic)
+#             └─> _fetch_page(client, topic, page)    (par page)
+#             └─> _normalize(raw)                     (static, normalise chaque article brut)
+#         └─> upsert_articles(articles)               (si articles trouvés)
+#             └─> get_collection(), embed(), print_db_stats()
 #
 # Les fonctions statiques servent à la normalisation et à la découpe du contenu.
 # ---------------------------------------------------------------
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -54,33 +56,37 @@ class NewsApiIngester:
             return []
 
         topics = list(dict.fromkeys(topics))
-
         self._seen_ids.clear()
-        articles: list[Article] = []
 
-        with httpx.Client(timeout=30) as client:
-            for topic in topics:
-                try:
-                    articles.extend(self._fetch_topic(client, topic))
-                except httpx.HTTPError as exc:
-                    logger.warning("topic %r failed: %s", topic, exc)
+        articles = asyncio.run(self._fetch_all(topics))
 
         if articles:
             upsert_articles(articles)
 
         return [a.model_dump() for a in articles]
- 
 
     # ── private ──────────────────────────────────────────────
 
-    def _fetch_topic(self, client: httpx.Client, topic: str) -> list[Article]:
+    async def _fetch_all(self, topics: list[str]) -> list[Article]:
+        """Fetch all topics and return a flat list of Article objects."""
+        articles: list[Article] = []
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            for topic in topics:
+                try:
+                    articles.extend(await self._fetch_topic(client, topic))
+                except httpx.HTTPError as exc:
+                    logger.warning("topic %r failed: %s", topic, exc)
+
+        return articles
+
+    async def _fetch_topic(self, client: httpx.AsyncClient, topic: str) -> list[Article]:
         """Fetch a topic and return a list of Article objects."""
-        assert self.settings is not None
         articles: list[Article] = []
         fetched = 0
 
         for page in range(1, _MAX_PAGES + 1):
-            data = self._fetch_page(client, topic, page)
+            data = await self._fetch_page(client, topic, page)
             raw_articles: list[dict[str, Any]] = data.get("results", [])
             total_results: int = data.get("totalResults", 0)
             for raw in raw_articles:
@@ -95,21 +101,33 @@ class NewsApiIngester:
 
         return articles
 
-    def _fetch_page(self, client: httpx.Client, topic: str, page: int) -> dict[str, Any]:
+    async def _fetch_page(
+        self,
+        client: httpx.AsyncClient,
+        topic: str,
+        page: int,
+        *,
+        page_size: int = _PAGE_SIZE,
+        from_date: str | None = None,
+    ) -> dict[str, Any]:
         """Fetch a page of articles and return a dictionary of results."""
         assert self.settings is not None
-        resp = client.get(
+        params: dict[str, Any] = {
+            "q": topic,
+            "size": page_size,
+            "page": page,
+            "sort": _SORT,
+            "language": _LANGUAGE,
+            "removeDuplicate": _REMOVE_DUPLICATE,
+            "excludefield": _EXCLUDE_FIELD,
+            "category": _CATEGORIES,
+        }
+        if from_date is not None:
+            params["from_date"] = from_date
+
+        resp = await client.get(
             f"{self.settings.news_api_base_url}/{_ENDPOINT}",
-            params={
-                "q": topic,
-                "size": _PAGE_SIZE,
-                "page": page,
-                "sort": _SORT,
-                "language": _LANGUAGE,
-                "removeDuplicate": _REMOVE_DUPLICATE,
-                "excludefield": _EXCLUDE_FIELD,
-                "category": _CATEGORIES,
-            },
+            params=params,
             headers={"X-ACCESS-KEY": self.settings.news_api_key},
         )
         resp.raise_for_status()
@@ -132,7 +150,7 @@ class NewsApiIngester:
         try:
             return Article(
                 id=stable_id(url),
-                title=raw.get("title") or "",
+                title=raw.get("title") or "Sans titre",
                 source_name=raw.get("source_name") or "unknown",
                 source_type="news_article",
                 date_published=raw.get("pubDate"),
