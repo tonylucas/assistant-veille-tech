@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import typer
 
-from app.rag.chroma_client import delete_collection
+from app.rag.chroma_client import delete_documents
 from app.ingest.topics import load_topics, save_topics
 from app.ingest.news_api import NewsApiIngester
 from app.ingest.twitter import TwitterIngester
@@ -46,10 +46,12 @@ def delete_and_ingest(
     ),
 ) -> None:
     """Delete the collection and ingest the topics."""
-    delete_collection(where={"source_type": "newsapi"})
-    delete_collection(where={"source_type": "x-article"})
+    delete_documents(where={"source_type": "news_article"})
+    delete_documents(where={"source_type": "x-article"})
+    typer.echo("Documents deleted successfully.")
+
     ingest(topics)
-    typer.echo("Collection deleted and ingested successfully.")
+    typer.echo("Documents deleted and ingested successfully.")
 
 if __name__ == "__main__":
     app()

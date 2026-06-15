@@ -31,7 +31,7 @@ def get_collection() -> Collection:
         metadata={"hnsw:space": "cosine"},
     )
 
-def delete_collection(where: dict[str, str]) -> None:
+def delete_documents(where: dict[str, str]) -> None:
     """Delete all documents from the collection where the metadata matches the given where clause."""
     settings = get_settings()
     client = get_client()
