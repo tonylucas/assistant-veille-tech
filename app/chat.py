@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-from app.ingest import enrich as ingest_enrich
 from app.rag import retrieval
 from app.rag.llm import compose_answer
 from app.runtime import fresh_news
@@ -15,13 +14,6 @@ async def handle_chat(req: ChatRequest) -> ChatResponse:
     query = _expand_query(req.question, req.topics)
 
     retrieved = retrieval.retrieve(query, k=8)
-
-    try:
-        enriched = ingest_enrich.enrich_retrieval(retrieved)
-    except NotImplementedError:
-        enriched = []
-    if enriched:
-        retrieved = retrieved + enriched
 
     try:
         fresh = await fresh_news.fetch(topics=req.topics, since=None)
