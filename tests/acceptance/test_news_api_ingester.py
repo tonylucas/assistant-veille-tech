@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import pytest
+
 from app.ingest.chroma_upsert import _split_content
 from app.ingest.news_api import NewsApiIngester
 from tests.acceptance.ingest_helpers import assert_normalized_articles, assert_unique_urls
+from tests.acceptance.news_api_fakes import mock_news_api
+
+
+@pytest.fixture()
+def news_api_mock():
+    with mock_news_api() as mock:
+        yield mock
 
 
 def test_run_returns_list_of_normalized_articles(news_api_mock) -> None:

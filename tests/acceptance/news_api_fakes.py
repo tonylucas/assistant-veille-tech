@@ -1,17 +1,20 @@
+"""Fakes NewsAPI pour les tests d'ingestion."""
+
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 import httpx
-import pytest
 import respx
 
 FIXTURE_PATH = Path(__file__).parent.parent / "fixtures" / "news.json"
 
 
-@pytest.fixture()
-def news_api_mock():
+@contextmanager
+def mock_news_api() -> Iterator[respx.MockRouter]:
     """
     Intercepte les appels httpx vers newsdata.io avec des données stables.
     ChromaDB et Azure Embeddings sont appelés réellement (tests d'acceptance).
