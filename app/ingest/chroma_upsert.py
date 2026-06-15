@@ -15,7 +15,7 @@ _CHUNK_SIZE = 2000  # ~400 mots / ~500 tokens en francais
 _CHUNK_OVERLAP = 200  # ~10 % d'overlap
 
 
-def _split_content(content: str) -> list[str]:
+def split_content(content: str) -> list[str]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=_CHUNK_SIZE,
         chunk_overlap=_CHUNK_OVERLAP,
@@ -33,7 +33,7 @@ def upsert_articles(articles: list[Article]) -> None:
     metadatas: list[dict[str, Any]] = []
 
     for article in articles:
-        chunks = _split_content(article.content)
+        chunks = split_content(article.content)
         base_meta = {
             "source_type": article.source_type,
             "source_name": article.source_name,
