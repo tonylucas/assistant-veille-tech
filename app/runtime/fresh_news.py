@@ -1,3 +1,24 @@
+# ---------------------------------------------------------------
+# Flux d'appel des fonctions principales (call flow):
+#
+# fetch(topics, since)
+#     └─> _resolve_cutoff(since)                     (cutoff = now - 48 h si since=None)
+#     └─> asyncio.gather(                            (appel parallèle)
+#         _fetch_from_newsapi(topics, cutoff, seen_ids)
+#             └─> NewsApiIngester._fetch_page(...)   (page 1, 5 articles/topic, depuis cutoff)
+#             └─> NewsApiIngester._normalize(raw)    (filtre sans URL/contenu)
+#         _fetch_from_twitter(topics, cutoff, seen_ids)
+#             └─> TwitterIngester._get_client()      (cookies ou login)
+#             └─> client.search_tweet(topic, "Top")  (20 tweets/topic)
+#             └─> TwitterIngester._normalize(tweet)  (filtre hors cutoff)
+#             └─> TwitterIngester._fetch_full_article(url) (scrape via md.genedai.me)
+#     )
+#     └─> retourne list[Article]  (non upsertés dans Chroma — injectés directement dans le prompt)
+#
+# Les deux sources partagent un seen_ids commun pour éviter les doublons inter-sources.
+# Une source défaillante retourne [] sans bloquer l'autre (return_exceptions=True).
+# ---------------------------------------------------------------
+
 from __future__ import annotations
 
 import asyncio
@@ -87,6 +108,8 @@ async def _fetch_from_twitter(
                 if not article.content:
                     continue
                 seen_ids.add(article.id)
+                print(f"twitter article: {article.url}")
+                logger.info(f"twitter article: {article.url}")
                 results.append(article)
         except Exception as exc:
             logger.warning("fresh_news twitter topic %r: %s", topic, exc)

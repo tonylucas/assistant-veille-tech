@@ -1,0 +1,60 @@
+sequenceDiagram
+    autonumber
+    participant UI as Frontend / User
+    participant Ingest as Pipeline ingestion
+    participant LLM as Modèle LLM<br>(Kimi-K2.6)
+    participant Embed as Modèle<br>d'embedding
+    participant Source as Sources<br>(NewsData / Twikit)
+    participant Process as Nettoyage<br>& Chunking
+    participant DB as Base Vectorielle<br>(Chroma)
+    participant Agent as Agent LangChain<br>(Runtime)
+
+    rect rgb(240, 248, 255)
+    Note over UI, Agent: PHASE 1 : INGESTION (make ingest)
+    UI->>Ingest: Saisie Thème + Description
+    Ingest->>LLM: Expansion de la requête (Multi-query)
+    LLM-->>Ingest: 3 sous-requêtes générées
+    
+    par Collecte parallèle
+        Ingest->>Source: API NewsData (Filtre 2 mois max)
+        Ingest->>Source: Scraper Twikit (Filtre 2 mois max)
+    end
+    Source-->>Ingest: Retourne les données brutes (JSON/Texte)
+    
+    Ingest->>Process: Envoi des données
+    Note over Process: Déduplication des sources (par URL),<br/>Suppression du boilerplate
+    Note over Process: Chunking : Articles (300-500 mots) <br/>+ Posts X (entiers)
+    
+    Process->>Embed: Vectorisation des chunks
+    Embed-->>Process: Retourne les vecteurs (Embeddings)
+    
+    Process->>DB: Upsert Embeddings + Métadonnées<br/>(L'URL ou Hash de l'URL sert d'ID unique)
+    DB-->>Ingest: Succès de l'indexation
+    Ingest-->>UI: Fin de l'ingestion
+    end
+
+    rect rgb(255, 245, 238)
+    Note over UI, Agent: PHASE 2 : RUNTIME (Clic "Get News")
+    UI->>Agent: Requête utilisateur (Tendances, etc.)
+    Agent->>LLM: Expansion de la requête (Multi-query)
+    LLM-->>Agent: 3 requêtes de recherche
+    
+    Agent->>Embed: Vectorisation des 3 requêtes
+    Embed-->>Agent: Retourne les vecteurs de recherche
+    
+    par Recherche Hybride
+        Agent->>DB: Recherche par similarité vectorielle avec les 3 vecteurs
+        DB-->>Agent: Retourne le Top-K initial (Signaux Froids)
+        Agent->>Source: Fetch direct API (3 requêtes, filtre date: now - 24h)
+        Source-->>Agent: Retourne les contenus récents (Signaux Frais)
+    end
+    
+    Note over Agent: Fusion et déduplication (URL)<br/>des signaux froids et frais
+    
+    Agent->>LLM: Re-ranking : Évaluer la pertinence de tous les résultats combinés
+    LLM-->>Agent: Retourne uniquement le Final Top-5 le plus pertinent
+    
+    Agent->>LLM: Prompt = Question User + Contexte (Final Top-5) + Schéma Pydantic<br/>Instruction : Générer un résumé concis pour chaque source
+    LLM-->>Agent: Résumé pour chaque source avec URL cliquable
+    Agent-->>UI: Affichage des résumés + UI cards (Titre, Source, Date, URL)
+    end

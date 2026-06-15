@@ -62,9 +62,9 @@ make install                  # uv sync (backend)
 make up                       # docker compose up -d (chromadb + backend + frontend)
 ```
 
-- Backend : http://localhost:8000 (`/health`, `/topics`, `/chat`)
-- Frontend : http://localhost:3000
-- ChromaDB : http://localhost:8002
+- Backend : [http://localhost:8000](http://localhost:8000) (`/health`, `/topics`, `/chat`)
+- Frontend : [http://localhost:3000](http://localhost:3000)
+- ChromaDB : [http://localhost:8002](http://localhost:8002)
 
 Tests :
 
@@ -78,12 +78,66 @@ Ingestion (CLI) :
 make ingest                   # passe par scripts/ingest_cli.py
 ```
 
+## Flux de bout en bout
+
+### Ingestion
+
+```
+make ingest  →  scripts/ingest_cli.py
+                └── NewsApiIngester.run(topics)
+                    ├── _fetch_topic(topic) × N topics
+                    │   ├── _fetch_page(page 1..2)   ← GET NewsAPI /latest (10 articles/page, fr)
+                    │   └── _normalize(raw)          ← filtre les articles sans URL/contenu
+                    │                                  génère id = SHA1(url)
+                    └── upsert_articles(articles)    ← si au moins 1 article trouvé
+                        ├── split_content()          ← RecursiveCharacterTextSplitter 2000/200
+                        ├── embed(chunk)             ← intfloat/multilingual-e5-small
+                        └── collection.upsert()      ← ChromaDB HTTP
+```
+
+Chaque article est découpé en chunks (≈400 mots). Chaque chunk est stocké avec ses métadonnées
+(`title`, `url`, `source_name`, `tags`, `date_published`, `chunk_index`).
+La dedup se fait par `id = SHA1(url)` : un même article ne sera jamais inséré deux fois.
+
+---
+
+### Chat — retrieval + fresh news
+
+```
+POST /chat  →  app/chat.py:handle_chat()
+               │
+               ├── 1. Expand query
+               │      question + topics  →  "question | topic1, topic2"
+               │
+               ├── 2. Semantic retrieval  (app/ragflux/retrieval.py)
+               │      embed(query)  →  Chroma.query(top-8)
+               │      retourne des chunks + métadonnées (titre, url, date…)
+               │
+               ├── 3. Fresh news  (app/runtime/fresh_news.py)
+               │      appel parallèle (asyncio.gather) :
+               │      ├── NewsAPI /latest  (page 1, 5 articles/topic, depuis 48 h)
+               │      └── Twitter/X via twikit  (20 tweets/topic, depuis 48 h)
+               │      les deux sources partagent un seen_ids pour éviter les doublons
+               │      erreur/indisponibilité → liste vide, pas de crash
+               │
+               └── 4. LLM synthesis  (app/rag/llm.py)
+                      contexte = chunks Chroma + articles frais
+                      → Azure AI (Kimi-K2.6) via LangChain
+                      → JSON { answer, cards[] }
+                      si LLM indisponible → status="degraded"
+```
+
+Les articles frais ne sont **pas** stockés dans Chroma : ils sont injectés directement dans le
+prompt au moment du chat pour couvrir l'actualité des dernières 48 h sans latence d'ingestion.
+
+---
+
 ## Sources potentielles
 
 Voici quelques pistes de sources publiques utilisables pour alimenter l'index :
 
-- **NewsAPI v2** (`/everything`, `/top-headlines`) — documentation : https://newsapi.org/docs
-- **Twitter / X** via twikit (sans clé API, login compte + cookies) — contenu tech "chaud" et live, filtré sur 2 mois — https://github.com/d60/twikit
+- **NewsAPI v2** (`/everything`, `/top-headlines`) — documentation : [https://newsapi.org/docs](https://newsapi.org/docs)
+- **Twitter / X** via twikit (sans clé API, login compte + cookies) — contenu tech "chaud" et live, filtré sur 2 mois — [https://github.com/d60/twikit](https://github.com/d60/twikit)
 - **Blogs et agrégateurs techniques** — par exemple Hacker News (front page / item API), DEV.to, Smashing Magazine, lobste.rs
 - **Changelogs produits** — par exemple Vercel, OpenAI, GitHub, Anthropic, Stripe
 - **Pages de docs / annonces** — par exemple les release notes des frameworks de l'écosystème (Next.js, FastAPI, LangChain), les changelogs Python / Node
@@ -110,4 +164,4 @@ Interne Nauda Palisse.
 
 ## Contact
 
-veille@nauda-palisse.example
+[veille@nauda-palisse.example](mailto:veille@nauda-palisse.example)
